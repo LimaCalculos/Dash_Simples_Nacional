@@ -27,8 +27,7 @@ frontend/.DS_Store
 Thumbs.db
 
 # Credentials (NUNCA envie essas pastas!)
-credentials.json
-token.json
+# credentials.json e token.json são agora placeholders para permitir deploy
 client_secret*.json
 
 # Python
