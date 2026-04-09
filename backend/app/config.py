@@ -1,9 +1,15 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import List
 
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./data/simples.db"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def strip_database_url(cls, v: str) -> str:
+        return v.strip() if isinstance(v, str) else v
     SECRET_KEY: str = "dev-secret-key-troque-em-producao"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 8
 
