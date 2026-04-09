@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: simples-dashboard-api
+    env: python
+    plan: free
+    buildCommand: apt-get update && apt-get install -y libpq-dev && cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port 8080
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.10.14"
