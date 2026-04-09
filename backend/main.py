@@ -1,4 +1,6 @@
 import logging
+import os
+import base64
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -12,6 +14,29 @@ from app.services.sync_service import run_sync
 
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL))
 logger = logging.getLogger(__name__)
+
+
+def setup_google_credentials():
+    """Reconstrói credentials.json e token.json a partir de variáveis de ambiente (para Render)."""
+    cred_b64 = os.environ.get("CREDENTIALS_JSON_B64")
+    tok_b64 = os.environ.get("TOKEN_JSON_B64")
+
+    if cred_b64:
+        path = settings.GOOGLE_DRIVE_CREDENTIALS_FILE
+        os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(cred_b64))
+        logger.info("credentials.json restaurado a partir de variável de ambiente.")
+
+    if tok_b64:
+        path = settings.GOOGLE_DRIVE_TOKEN_FILE
+        os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(tok_b64))
+        logger.info("token.json restaurado a partir de variável de ambiente.")
+
+
+setup_google_credentials()
 
 scheduler = BackgroundScheduler(timezone="America/Sao_Paulo")
 
