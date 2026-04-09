@@ -1,0 +1,54 @@
+# Backend
+backend/venv/
+backend/__pycache__/
+backend/.env
+backend/.env.local
+backend/data/simples.db
+backend/*.log
+backend/.DS_Store
+backend/instance/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Credentials (NUNCA envie essas pastas!)
+credentials.json
+token.json
+client_secret*.json
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+npm-debug.log
+yarn-error.log
+.npm
+
+# Misc
+.env.*.local
+*.pid
+*.seed
+*.pid.lock
