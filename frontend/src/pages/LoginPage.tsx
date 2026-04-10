@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
@@ -20,7 +22,7 @@ export default function LoginPage() {
 
         // Get ID token via implicit flow workaround: use access token to get profile
         // For production use authorization_code flow — here we use access token + profile
-        const res = await axios.post('/auth/google-access-token', {
+        const res = await axios.post(`${API_BASE}/auth/google-access-token`, {
           access_token: tokenResponse.access_token,
           email: userInfo.data.email,
           name: userInfo.data.name,
