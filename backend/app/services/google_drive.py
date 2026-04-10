@@ -95,18 +95,29 @@ def list_subfolders(service, folder_id: str) -> List[Dict]:
 
 
 def list_pdfs_in_folder(service, folder_id: str) -> List[Dict]:
-    """List all PDF files directly inside a specific folder."""
+    """List ALL PDF files in a folder, handling pagination (Drive returns max 100/page)."""
     query = (
         f"'{folder_id}' in parents "
         "and mimeType = 'application/pdf' "
         "and trashed = false"
     )
-    result = service.files().list(
-        q=query,
-        fields="files(id, name, size, modifiedTime)",
-        orderBy="name",
-    ).execute()
-    return result.get("files", [])
+    files = []
+    page_token = None
+    while True:
+        kwargs = dict(
+            q=query,
+            fields="nextPageToken, files(id, name, size, modifiedTime)",
+            orderBy="name",
+            pageSize=1000,
+        )
+        if page_token:
+            kwargs["pageToken"] = page_token
+        result = service.files().list(**kwargs).execute()
+        files.extend(result.get("files", []))
+        page_token = result.get("nextPageToken")
+        if not page_token:
+            break
+    return files
 
 
 def list_pdfs_recursive(service, folder_id: str, _path: str = "") -> List[Dict]:
