@@ -101,6 +101,14 @@ export interface MensalClienteItem {
   total_declarado: number
   total_esperado: number
   cobertura_pct: number
+  mes_atual?: string
+  mes_anterior?: string
+  faturamento_atual?: number
+  faturamento_anterior?: number
+  aliquota_atual?: number
+  aliquota_anterior?: number
+  variacao_faturamento_pct?: number
+  variacao_aliquota_pct?: number
 }
 
 export interface KpiMensalResponse {

@@ -117,11 +117,12 @@ def get_dashboard_mensal(
     total_declarado_geral = 0
 
     for cliente in clientes:
-        decls = db.query(SimplesDeclaracao.competencia).filter(
+        decls_full = db.query(SimplesDeclaracao).filter(
             SimplesDeclaracao.client_id == cliente.id,
             SimplesDeclaracao.competencia.in_(meses),
         ).all()
-        decl_meses = {d[0] for d in decls}
+        decl_meses = {d.competencia for d in decls_full}
+        decl_map = {d.competencia: d for d in decls_full}
 
         meses_dict = {m: (m in decl_meses) for m in meses}
         total_decl = len(decl_meses)
@@ -134,6 +135,22 @@ def get_dashboard_mensal(
         if cobertura == 100.0:
             clientes_completos += 1
 
+        # Calcular evolução: mês atual vs anterior (últimos 2 meses com declaração)
+        meses_com_decl = sorted(decl_meses)
+        mes_atual = meses_com_decl[-1] if meses_com_decl else None
+        mes_anterior = meses_com_decl[-2] if len(meses_com_decl) >= 2 else None
+
+        fat_atual = decl_map[mes_atual].receita_bruta_pa if mes_atual else None
+        fat_anterior = decl_map[mes_anterior].receita_bruta_pa if mes_anterior else None
+        trib_atual = decl_map[mes_atual].valor_total if mes_atual else None
+        trib_anterior = decl_map[mes_anterior].valor_total if mes_anterior else None
+
+        aliq_atual = round(trib_atual / fat_atual * 100, 2) if fat_atual and fat_atual > 0 else None
+        aliq_anterior = round(trib_anterior / fat_anterior * 100, 2) if fat_anterior and fat_anterior > 0 else None
+
+        var_fat = round((fat_atual - fat_anterior) / fat_anterior * 100, 1) if fat_atual and fat_anterior and fat_anterior > 0 else None
+        var_aliq = round(aliq_atual - aliq_anterior, 2) if aliq_atual is not None and aliq_anterior is not None else None
+
         result_clientes.append(MensalClienteItem(
             client_id=cliente.id,
             cnpj=cliente.cnpj,
@@ -142,6 +159,14 @@ def get_dashboard_mensal(
             total_declarado=total_decl,
             total_esperado=total_esp,
             cobertura_pct=cobertura,
+            mes_atual=mes_atual,
+            mes_anterior=mes_anterior,
+            faturamento_atual=fat_atual,
+            faturamento_anterior=fat_anterior,
+            aliquota_atual=aliq_atual,
+            aliquota_anterior=aliq_anterior,
+            variacao_faturamento_pct=var_fat,
+            variacao_aliquota_pct=var_aliq,
         ))
 
     cobertura_geral = round(total_declarado_geral / total_esperado_geral * 100, 1) if total_esperado_geral else 0.0

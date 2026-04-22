@@ -51,6 +51,15 @@ class MensalClienteItem(BaseModel):
     total_declarado: int
     total_esperado: int
     cobertura_pct: float
+    # Evolução: mês atual vs anterior
+    mes_atual: Optional[str] = None          # competência mais recente
+    mes_anterior: Optional[str] = None       # competência anterior
+    faturamento_atual: Optional[float] = None
+    faturamento_anterior: Optional[float] = None
+    aliquota_atual: Optional[float] = None
+    aliquota_anterior: Optional[float] = None
+    variacao_faturamento_pct: Optional[float] = None  # % variação
+    variacao_aliquota_pct: Optional[float] = None     # diferença em pontos percentuais
 
 
 class KpiMensalResponse(BaseModel):
