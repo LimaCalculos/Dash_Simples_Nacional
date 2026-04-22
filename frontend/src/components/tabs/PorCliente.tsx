@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { TrendingUp, DollarSign, Percent, Calendar, AlertTriangle, MapPin, FileDown } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar,
@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import html2canvas from 'html2canvas'
 import StatCard from '../dashboard/StatCard'
 import { useClients, useDashboardCliente } from '../../hooks'
 
@@ -13,7 +14,12 @@ const BRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 const PCT = (v: number) => `${v.toFixed(2)}%`
 const formatComp = (c: string) => { const [y, m] = c.split('-'); return `${m}/${y.slice(2)}` }
 
-function gerarPDF(data: any, clienteNome: string) {
+async function gerarPDF(
+  data: any,
+  clienteNome: string,
+  refGrafico1: HTMLElement | null,
+  refGrafico2: HTMLElement | null
+) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const now = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const pageW = doc.internal.pageSize.getWidth()
@@ -21,17 +27,16 @@ function gerarPDF(data: any, clienteNome: string) {
   // Cabeçalho
   doc.setFillColor(10, 10, 10)
   doc.rect(0, 0, pageW, 30, 'F')
-  doc.setTextColor(212, 175, 55) // gold
+  doc.setTextColor(212, 175, 55)
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
-  doc.text('Lima Cálculos', 14, 13)
+  doc.text('Lima Calculos', 14, 13)
   doc.setFontSize(9)
   doc.setTextColor(150, 150, 150)
-  doc.text('Simples Nacional — Relatório por Cliente', 14, 20)
+  doc.text('Simples Nacional - Relatorio por Cliente', 14, 20)
   doc.text(`Emitido em: ${now}`, pageW - 14, 20, { align: 'right' })
 
   // Nome e CNPJ do cliente
-  doc.setTextColor(30, 30, 30)
   doc.setFillColor(245, 245, 240)
   doc.rect(0, 30, pageW, 18, 'F')
   doc.setFontSize(13)
@@ -43,12 +48,12 @@ function gerarPDF(data: any, clienteNome: string) {
   doc.setTextColor(100, 100, 100)
   doc.text(`CNPJ: ${data.cnpj}${data.municipio ? `   |   ${data.municipio}/${data.uf}` : ''}`, 14, 46)
 
-  // KPIs em caixas
+  // KPIs
   const kpis = [
-    { label: 'Competências Declaradas', value: String(data.competencias_declaradas) },
+    { label: 'Competencias', value: String(data.competencias_declaradas) },
     { label: 'Receita Total', value: BRL(data.receita_total) },
     { label: 'Tributos Total', value: BRL(data.tributos_total) },
-    { label: 'Alíquota Média', value: PCT(data.aliquota_media) },
+    { label: 'Aliquota Media', value: PCT(data.aliquota_media) },
   ]
   const colW = (pageW - 28) / 4
   kpis.forEach((kpi, i) => {
@@ -66,8 +71,9 @@ function gerarPDF(data: any, clienteNome: string) {
     doc.text(kpi.value, x + colW / 2, 69, { align: 'center' })
   })
 
-  // Alerta sublimite
   let yPos = 82
+
+  // Alerta sublimite
   if (data.alerta_sublimite) {
     doc.setFillColor(255, 243, 205)
     doc.setDrawColor(255, 193, 7)
@@ -75,21 +81,50 @@ function gerarPDF(data: any, clienteNome: string) {
     doc.setFontSize(8)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(133, 77, 14)
-    doc.text(`⚠ Atenção ao sublimite! RBT12: ${BRL(data.rbt12_atual)} — acima de 80% do limite anual`, 18, yPos + 6.5)
+    doc.text(`Atencao ao sublimite! RBT12: ${BRL(data.rbt12_atual)} - acima de 80% do limite anual`, 18, yPos + 6.5)
     yPos += 16
   }
 
-  // Título da tabela
+  // Capturar gráficos como imagem
+  const graficoW = (pageW - 28) / 2
+  const graficoH = 45
+
+  if (refGrafico1) {
+    try {
+      const canvas = await html2canvas(refGrafico1, { backgroundColor: '#111111', scale: 2 })
+      const img = canvas.toDataURL('image/png')
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(60, 60, 60)
+      doc.text('Receita Bruta por Competencia', 14, yPos + 4)
+      doc.addImage(img, 'PNG', 14, yPos + 6, graficoW - 2, graficoH)
+    } catch (_) {}
+  }
+
+  if (refGrafico2) {
+    try {
+      const canvas = await html2canvas(refGrafico2, { backgroundColor: '#111111', scale: 2 })
+      const img = canvas.toDataURL('image/png')
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(60, 60, 60)
+      doc.text('Tributos por Competencia (DAS)', 14 + graficoW + 2, yPos + 4)
+      doc.addImage(img, 'PNG', 14 + graficoW + 2, yPos + 6, graficoW - 2, graficoH)
+    } catch (_) {}
+  }
+
+  yPos += graficoH + 14
+
+  // Tabela histórico
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(30, 30, 30)
-  doc.text('Histórico de Declarações', 14, yPos + 6)
-  yPos += 10
+  doc.text('Historico de Declaracoes', 14, yPos)
+  yPos += 4
 
-  // Tabela histórico
   autoTable(doc, {
     startY: yPos,
-    head: [['Competência', 'Receita Bruta', 'Tributos', 'Alíquota']],
+    head: [['Competencia', 'Receita Bruta', 'Tributos (DAS)', 'Aliquota']],
     body: data.evolucao.map((row: any) => [
       formatComp(row.competencia),
       BRL(row.receita_bruta),
@@ -114,11 +149,10 @@ function gerarPDF(data: any, clienteNome: string) {
     doc.setPage(i)
     doc.setFontSize(7)
     doc.setTextColor(150, 150, 150)
-    doc.text(`Lima Cálculos — Gerado automaticamente pelo sistema Simples Dashboard`, 14, 290)
-    doc.text(`Página ${i}/${totalPages}`, pageW - 14, 290, { align: 'right' })
+    doc.text('Lima Calculos - Gerado automaticamente pelo sistema Simples Dashboard', 14, 290)
+    doc.text(`Pagina ${i}/${totalPages}`, pageW - 14, 290, { align: 'right' })
   }
 
-  // Salvar
   const nomeArquivo = `relatorio-${clienteNome.replace(/\s+/g, '_').toLowerCase()}-${now.replace(/\//g, '-')}.pdf`
   doc.save(nomeArquivo)
 }
@@ -128,16 +162,19 @@ export default function PorCliente() {
   const [gerando, setGerando] = useState(false)
   const { data: clients } = useClients()
   const { data, isLoading } = useDashboardCliente(selectedId)
+  const refGrafico1 = useRef<HTMLDivElement>(null)
+  const refGrafico2 = useRef<HTMLDivElement>(null)
 
   const clienteSelecionado = clients?.find(c => c.id === selectedId)
 
-  const handleGerarPDF = () => {
+  const handleGerarPDF = async () => {
     if (!data || !clienteSelecionado) return
     setGerando(true)
-    setTimeout(() => {
-      gerarPDF(data, clienteSelecionado.nome)
+    try {
+      await gerarPDF(data, clienteSelecionado.nome, refGrafico1.current, refGrafico2.current)
+    } finally {
       setGerando(false)
-    }, 100)
+    }
   }
 
   return (
@@ -210,7 +247,7 @@ export default function PorCliente() {
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Receita bruta do cliente */}
-            <div className="card p-5">
+            <div className="card p-5" ref={refGrafico1}>
               <h3 className="text-dark-200 font-semibold text-sm mb-4">Receita Bruta por Competência</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={data.evolucao}>
@@ -226,7 +263,7 @@ export default function PorCliente() {
             </div>
 
             {/* Tributos total por competência (simplificado) */}
-            <div className="card p-5">
+            <div className="card p-5" ref={refGrafico2}>
               <h3 className="text-dark-200 font-semibold text-sm mb-1">Tributos por Competência</h3>
               <p className="text-dark-500 text-xs mb-4">DAS unificado do Simples Nacional</p>
               <ResponsiveContainer width="100%" height={200}>
