@@ -5,7 +5,7 @@ Suporta mTLS via:
   - SERPRO_CERT_PATH: caminho local do .pfx (para desenvolvimento)
 """
 
-import base64, json, os, re, ssl, tempfile, time, hashlib, zlib
+import base64, json, os, re, tempfile, time, hashlib, zlib
 from typing import Optional, Dict, Any, List, Tuple
 
 import httpx
@@ -15,20 +15,20 @@ TOKEN_URL         = "https://autenticacao.sapi.serpro.gov.br/authenticate"
 CONSULTAR_URL     = "https://gateway.apiserpro.serpro.gov.br/integra-contador/v1/Consultar"
 
 _token_cache: Dict[str, Dict] = {}
-_ssl_ctx: Optional[ssl.SSLContext] = None
-_ssl_ctx_attempted = False
+_cert_files: Optional[Tuple[str, str]] = None   # (cert_pem_path, key_pem_path)
+_cert_attempted = False
 
 
 # ── mTLS ──────────────────────────────────────────────────────────────────────
 
-def _build_ssl_context() -> Optional[ssl.SSLContext]:
-    global _ssl_ctx, _ssl_ctx_attempted
-    if _ssl_ctx_attempted:
-        return _ssl_ctx
-    _ssl_ctx_attempted = True
+def _get_cert_files() -> Optional[Tuple[str, str]]:
+    """Extrai o PFX e devolve (cert.pem, key.pem) em arquivos temporários."""
+    global _cert_files, _cert_attempted
+    if _cert_attempted:
+        return _cert_files
+    _cert_attempted = True
 
-    # 1) env var SERPRO_CERT_B64 (produção / Render)
-    cert_b64 = os.environ.get("SERPRO_CERT_B64")
+    cert_b64  = os.environ.get("SERPRO_CERT_B64", "").strip()
     cert_path = os.environ.get("SERPRO_CERT_PATH",
         r"C:/Users/allkb/Downloads/Certificados Digitais/1001265665(contabilize) senha 12345678.pfx")
     cert_pass = os.environ.get("SERPRO_CERT_PASSWORD", "12345678")
@@ -36,49 +36,53 @@ def _build_ssl_context() -> Optional[ssl.SSLContext]:
     try:
         if cert_b64:
             pfx_data = base64.b64decode(cert_b64)
+            print("[Serpro] Certificado carregado da variável de ambiente.")
         elif os.path.exists(cert_path):
             with open(cert_path, "rb") as f:
                 pfx_data = f.read()
+            print("[Serpro] Certificado carregado do disco local.")
         else:
             print("[Serpro] Certificado não encontrado — sem mTLS")
             return None
 
         from cryptography.hazmat.primitives.serialization import (
-            pkcs12, Encoding, PrivateFormat, NoEncryption
+            pkcs12, Encoding, PrivateFormat, NoEncryption,
         )
-        private_key, cert, _ = pkcs12.load_key_and_certificates(pfx_data, cert_pass.encode())
+        private_key, cert, _ = pkcs12.load_key_and_certificates(
+            pfx_data, cert_pass.encode()
+        )
         cert_pem = cert.public_bytes(Encoding.PEM)
-        key_pem  = private_key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+        key_pem  = private_key.private_bytes(
+            Encoding.PEM, PrivateFormat.PKCS8, NoEncryption()
+        )
 
-        # Salva PEMs em temp (reutiliza durante a vida do processo)
         with tempfile.NamedTemporaryFile(suffix=".pem", delete=False, mode="wb") as cf:
             cf.write(cert_pem)
             cert_file = cf.name
-        with tempfile.NamedTemporaryFile(suffix=".pem", delete=False, mode="wb") as kf:
+        with tempfile.NamedTemporaryFile(suffix=".key", delete=False, mode="wb") as kf:
             kf.write(key_pem)
             key_file = kf.name
 
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        ctx.check_hostname = True
-        ctx.verify_mode    = ssl.CERT_REQUIRED
-        ctx.load_default_certs()
-        ctx.load_cert_chain(cert_file, key_file)
-        _ssl_ctx = ctx
-        print("[Serpro] mTLS configurado com sucesso")
-        return ctx
+        _cert_files = (cert_file, key_file)
+        print("[Serpro] mTLS pronto — cert:", cert_file)
+        return _cert_files
+
     except Exception as e:
-        print(f"[Serpro] Erro ao configurar mTLS: {e}")
+        print(f"[Serpro] Erro ao preparar mTLS: {e}")
         return None
 
 
 # ── HTTP ──────────────────────────────────────────────────────────────────────
 
 def _post(url: str, body: str | bytes, headers: Dict[str, str]) -> Any:
-    ctx = _build_ssl_context()
-    verify: Any = ctx if ctx else True
-    with httpx.Client(verify=verify, timeout=30) as client:
-        r = client.post(url, content=body if isinstance(body, bytes) else body.encode(),
-                        headers=headers)
+    cert = _get_cert_files()
+    # 'cert' envia o certificado do cliente (mTLS); 'verify=True' valida o servidor
+    with httpx.Client(cert=cert, verify=True, timeout=30) as client:
+        r = client.post(
+            url,
+            content=body if isinstance(body, bytes) else body.encode(),
+            headers=headers,
+        )
     if r.status_code >= 400:
         raise Exception(f"HTTP {r.status_code}: {r.text[:300]}")
     return r.json()
