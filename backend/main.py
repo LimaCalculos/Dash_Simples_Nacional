@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import create_tables, SessionLocal
-from app.routers import auth, dashboard, clients, declarations, drive
+from app.routers import auth, dashboard, clients, declarations, drive, serpro
 from app.services.sync_service import run_sync
 
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL))
@@ -99,6 +99,7 @@ app.include_router(dashboard.router)
 app.include_router(clients.router)
 app.include_router(declarations.router)
 app.include_router(drive.router)
+app.include_router(serpro.router)
 
 
 @app.get("/health")

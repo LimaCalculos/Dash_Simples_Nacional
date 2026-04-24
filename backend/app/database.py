@@ -27,5 +27,5 @@ def get_db():
 
 
 def create_tables():
-    from .models import user, client, declaration, drive_sync  # noqa: F401
+    from .models import user, client, declaration, drive_sync, serpro_creds  # noqa: F401
     Base.metadata.create_all(bind=engine)

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, RefreshCw, LogOut } from 'lucide-react'
+import { LayoutDashboard, RefreshCw, LogOut, FileSearch } from 'lucide-react'
 import clsx from 'clsx'
 import { useDriveStatus, useSyncNow } from '../../hooks'
 
@@ -49,6 +49,23 @@ export default function Sidebar() {
             <>
               <LayoutDashboard size={17} className={isActive ? 'text-gold-400' : ''} />
               Dashboard
+            </>
+          )}
+        </NavLink>
+
+        <NavLink
+          to="/serpro"
+          className={({ isActive }) => clsx(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
+            isActive
+              ? 'bg-gold-500/10 text-gold-400 border border-gold-500/20'
+              : 'text-dark-400 hover:bg-dark-800 hover:text-dark-200'
+          )}
+        >
+          {({ isActive }) => (
+            <>
+              <FileSearch size={17} className={isActive ? 'text-gold-400' : ''} />
+              Consulta Serpro
             </>
           )}
         </NavLink>

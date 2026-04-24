@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import AppShell from './components/layout/AppShell'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
+import SerproPage from './pages/SerproPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('token')
@@ -21,6 +22,7 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="serpro" element={<SerproPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
