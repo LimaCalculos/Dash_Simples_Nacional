@@ -92,6 +92,27 @@ def credenciais_status(
     return {"configured": row is not None, "cnpj_contador": row.cnpj_contador if row else None}
 
 
+@router.get("/debug/cert")
+def debug_cert(_user = Depends(get_current_user)):
+    """Diagnóstico do certificado mTLS (não expõe conteúdo sensível)."""
+    import os
+    b64 = os.environ.get("SERPRO_CERT_B64", "")
+    cert_path = os.environ.get("SERPRO_CERT_PATH", "")
+
+    # Força nova tentativa de carregamento
+    serpro_lib._cert_attempted = False
+    serpro_lib._cert_files     = None
+    cert = serpro_lib._get_cert_files()
+
+    return {
+        "serpro_cert_b64_len":   len(b64),
+        "serpro_cert_b64_ok":    len(b64) > 100,
+        "serpro_cert_path":      cert_path or "(não definido)",
+        "cert_loaded":           cert is not None,
+        "cert_files":            list(cert) if cert else None,
+    }
+
+
 @router.post("/procuracao")
 def procuracao(
     body:  ProcuracaoBody,

@@ -68,7 +68,9 @@ def _get_cert_files() -> Optional[Tuple[str, str]]:
         return _cert_files
 
     except Exception as e:
+        import traceback
         print(f"[Serpro] Erro ao preparar mTLS: {e}")
+        traceback.print_exc()
         return None
 
 
