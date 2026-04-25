@@ -93,7 +93,7 @@ def credenciais_status(
 
 
 @router.get("/debug/cert")
-def debug_cert(_user = Depends(get_current_user)):
+def debug_cert():
     """Diagnóstico do certificado mTLS (não expõe conteúdo sensível)."""
     import os
     b64 = os.environ.get("SERPRO_CERT_B64", "")
